@@ -1,2 +1,2 @@
 # Nanopb-C-Project-Template
-Template for a project that uses C and the nanopb protobuf library
+This template is built using solely a Makefile. Read it for more info.
