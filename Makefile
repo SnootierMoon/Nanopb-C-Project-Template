@@ -2,6 +2,8 @@
 #                                                                                #
 # Author: Akshay Trivedi                                                         #
 #                                                                                #
+#    https://github.com/SnootierMoon/Nanopb-C-Project-Template                   #
+#                                                                                #
 # Simple-complex C/C++ Nanopb makefile                                           #
 #                                                                                #
 # Ability to:                                                                    #
