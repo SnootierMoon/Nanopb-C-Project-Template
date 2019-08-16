@@ -134,7 +134,7 @@ OPTION_CLONE_SILENT                  =true
 #     $(EXTENSIONS_CPP) will be used to find source (.cpp) files,
 #     $(CXX) will be used to compile source files and
 #     $(LDXX) will be used to link object (.o) files off.
-OPTION_USE_CPP                       =false
+OPTION_USE_CPP                       =true
 
 # Use the -e linker flag for multiple entry points.
 # WARNING: Since _start won't be called, you must call exit(0)
@@ -159,7 +159,7 @@ OPTION_USE_ENGLISH_OUTPUT            =false
 #       this will cause dependencies (.d) and object (.o) files to be in the
 #       same directory.
 _DIR_SOURCE         =src
-_DIR_SOURCE_C       =c
+_DIR_SOURCE_C       =cpp
 _DIR_SOURCE_C_PBGEN =pb_gen
 _DIR_SOURCE_PROTO   =proto
 _DIR_BUILD          =build
@@ -238,9 +238,13 @@ EXTENSIONS_SOURCE_lang_false =$(EXTENSIONS_C)
 EXTENSIONS_SOURCE_lang_true  =$(EXTENSIONS_CXX)
 EXTENSIONS_SOURCE            =$(EXTENSIONS_SOURCE_lang_$(OPTION_USE_CPP))
 
-LDFLAGS_ENTRY_POINT_false     =
-LDFLAGS_ENTRY_POINT_true      =-e$(notdir $@)
-LDFLAGS_ENTRY_POINT           =$(LDFLAGS_ENTRY_POINT_$(OPTION_MULTIPLE_ENTRY_POINTS))
+EXTENSIONS_NORMAL_lang_false =.c
+EXTENSIONS_NORMAL_lang_true  =.cpp
+EXTENSIONS_NORMAL            =$(EXTENSIONS_NORMAL_lang_$(OPTION_USE_CPP))
+
+LDFLAGS_ENTRY_POINT_false    =
+LDFLAGS_ENTRY_POINT_true     =-e$(notdir $@)
+LDFLAGS_ENTRY_POINT          =$(LDFLAGS_ENTRY_POINT_$(OPTION_MULTIPLE_ENTRY_POINTS))
 
 TARGET_SYMLINK_DEP_false     =
 TARGET_SYMLINK_DEP_true      =$(_FILE_TARGET)
@@ -346,9 +350,9 @@ help:
 	@sed -ne '/@sed/!s/## //p' $(MAKEFILE_LIST)
 
 template:
-	$(MKDIR) $(DIR_SOURCE) $(DIR_SOURCE_C) $(DIR_SOURCE_PROTO)
-	$(ECHO) 'int main() {\n}\n' > $(DIR_SOURCE_C)/main.c
-	$(ECHO) "do 'make' to compile"
+	@$(MKDIR) $(DIR_SOURCE) $(DIR_SOURCE_C) $(DIR_SOURCE_PROTO)
+	$(ECHO) 'int main() {\n}\n' > $(DIR_SOURCE_C)/main$(EXTENSIONS_NORMAL)
+	$(ECHO) "now do 'make' or 'make all' to compile"
 
 pb-gen: $(SOURCE_C_PBGEN)
 
@@ -368,7 +372,7 @@ root-symlink: $(_FILE_TARGET)
 
 $(FILE_TARGET): $(FILE_OBJ) | $(DIR_BUILD_OUT)
 	$(SOURCE_LINKER) -o$@ $^ $(LDFLAGS)
-	$(ECHO) '-- Built executable $@ --'
+	$(ECHO) '-- Successfully Built Executable $@ --'
 
 $(FILE_OBJ_NOT_NANOPB): $(DIR_BUILD_OBJ)/%.o: % $(FILE_SOURCE_C_PBGEN) | $(FILE_DEP_DIRS) $(FILE_OBJ_DIRS)
 	$(SOURCE_COMPILER) -o$@ $< -c $(CFLAGS) -MMD -MP -MF$(DIR_BUILD_DEP)/$*.d
