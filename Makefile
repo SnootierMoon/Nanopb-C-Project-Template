@@ -26,34 +26,34 @@
 ##
 ## Usage:
 ##  - GETTING STARTED
-##     - this project only requires protoc and an understanding of protocol
+##     - This project only requires protoc and an understanding of protocol
 ##       buffers to work.
 ##
 ##  - BUILDING THE TEMPLATE
-##     - do 'make template' to generate the source directory.
+##     - Do 'make template' to generate the source directory.
 ##
-##     - add protocol buffer files into the protocol buffer source directory.
+##     - Add protocol buffer files into the protocol buffer source directory.
 ##
-##     - do 'make pb-gen' to create the nanopb *.pb.c *.pb.h files from the protocol
+##     - Do 'make pb-gen' to create the nanopb *.pb.c *.pb.h files from the protocol
 ##       buffers in the protocol buffer directory.
 ##
-##     - add source code anywhere in the C source directory and add an entry point.
+##     - Add source code anywhere in the C source directory and add an entry point.
 ##
-##     - do 'make' or 'make all' to generate an executable binary. 'make'
+##     - Do 'make' or 'make all' to generate an executable binary. 'make'
 ##       will run 'make all' which will compile protocol buffers, recompile
 ##       changed source code, and then relink all object files.
 ##
 ##  - CUSTOMIZABILITY
 ##
-##     - the makefile is highly customizable. options in the makefile allow for
+##     - The makefile is highly customizable. options in the makefile allow for
 ##       simple frontend modifications to tweak how files are generated.
 ##       open the makefile for more info.
 ##
 ##  - MAINTAINING A PROJECT
-##     - the complete executable will be in the build out directory. You can make
+##     - The complete executable will be in the build out directory. You can make
 ##       this makefile automatically create a symlink to it using a makefile option.
 ##
-##     - switching from C to C++: simply set the option in the makefile.
+##     - Switching from C to C++: simply set the option in the makefile.
 ##
 ##     - 'make help': shows this menu.
 ##
@@ -66,18 +66,18 @@
 ##     - 'make root-symlink': generates a symbolic link from project root to
 ##       the executable.
 ##
-##     - more options can be set within the makefile for customizabilty / ease of
+##     - More options can be set within the makefile for customizabilty / ease of
 ##       access.
 ##
 ##################################################################################
 #                                                                                #
 # Key:                                                                           #
-#  ALL_CAPS = makefile variable                                                  #
-#  lowercase = literal file/folder name, name independent of variables           #
+#  ALL_CAPS   = makefile variable                                                #
+#  lowercase  = literal file/folder name, name independent of variables          #
 #  [brackets] = description of file/folder contents                              #
 #                                                                                #
 #                                                                                #
-# Directory structure diagram:                                                   #
+# Directory Structure Diagram:                                                   #
 #                                                                                #
 #   DIR_NANOPB [nanopb source code]                                              #
 #   |__ generator                                                                #
@@ -113,36 +113,52 @@
 #                                                                                #
 ##################################################################################
 
-# -- BOOLEAN OPTIONS (true or false) --
+# -- BOOLEAN OPTIONS (true / false) --
 
-# on 'make clean', deletes nanopb.
+# When 'make clean' is called, deletes $(NANOPB_DIR).
+# NOTE: Recommended if $(NANOPB_DIR) is a subdirectory of project root.
+#         This allows your repo to only contain your source code.
+#       Not recommended if $(DIR_NANOPB) is being used by another project
+#         (if it's outside of project root, and other projects use it).
 OPTION_SHOULD_DELETE_NANOPB_ON_CLEAN =true
 
-# clones nanopb with silent output.
+# When cloning $(NANOPB_DIR), silences git output.
 OPTION_CLONE_SILENT                  =true
 
-# uses C++ instead of C (enable CXX variables).
+# Use C++ instead of C.
+# if $(OPTION_USE_CPP) is off:
+#     $(EXTENSIONS_C) will be used to find source (.c) files,
+#     $(CC) will be used to compile source files and
+#     $(LD) will be used to link object (.o) files off.
+# if $(OPTION_USE_CPP) is on:
+#     $(EXTENSIONS_CPP) will be used to find source (.cpp) files,
+#     $(CXX) will be used to compile source files and
+#     $(LDXX) will be used to link object (.o) files off.
 OPTION_USE_CPP                       =false
 
-# enables multiple entry points.
-# FILE_TARGET will a list of function names.
-# This means that FILE_TARGET is not customizable, which means that
-# the symlinks and files in build/out are not customizable, because
-# they have to be the entry point name.
-# useful for server/client programs that share libraries but do different things.
-# WARNING: you must explicitly call exit(0) on return, because _start won't call.
-#          it for you.
+# Use the -e linker flag for multiple entry points.
+# WARNING: Since _start won't be called, you must call exit(0)
+#          at the end of the entry point.
 OPTION_MULTIPLE_ENTRY_POINTS         =false
 
-# creates symlink from project root to executable.
-OPTION_MAKE_TARGET_SYMLINK           =true
+# Creates a symlink to the built executable.
+# If $(OPTION_MULTIPLE_ENTRY_POINTS) is true, multiple symlinks are
+# created.
+# The name of the symlink is the name of the executable (see $(_FILE_TARGET)).
+OPTION_MAKE_TARGET_SYMLINK           =false
 
-# Lmao (for the big brains)
+# Lmao (big brains only)
 OPTION_USE_ENGLISH_OUTPUT            =false
 
-# -- CUSTOMIZABLE DIRECTORY STRUCTURE BASENAMES --
+# -- DIRECTORY STRUCTURE (basenames) --
 
-_DIR_SOURCE         =src# LIMITATION: Do not name this 'nanopb', or whatever the 'NANOPB' variable is set to
+# LIMITATION: $(_DIR_SOURCE) cannot be $(NANOPB).
+# LIMITATION: $(_FILE_TARGET) cannot be the name of a directory in project root
+#             if $(OPTION_MAKE_TARGET_SYMLINK) is on.
+# NOTE: $(DIR_BUILD_DEP) can be $(DIR_BUILD_OBJ)
+#       this will cause dependencies (.d) and object (.o) files to be in the
+#       same directory.
+_DIR_SOURCE         =src
 _DIR_SOURCE_C       =c
 _DIR_SOURCE_C_PBGEN =pb_gen
 _DIR_SOURCE_PROTO   =proto
@@ -152,58 +168,38 @@ _DIR_BUILD_OBJ      =obj
 _DIR_BUILD_OUT      =out
 _FILE_TARGET        =main
 
-# Target symlink basename
-# Only applicable if OPTION_MAKE_TARGET_SYMLINK is true.
-# Change this if you don't want the symlink's name to be the executable's name.
-TARGET_SYMLINK_NAME =$(_FILE_TARGET)
-
-# Nanopb github repo
+# $(NANOPB) is the subdirectory in which generated .d and .o files will be stored
+#     in the $(DIR_BUILD_DEP) and $(DIR_BUILD_OBJ) folders for .c files in
+#     $(DIR_NANOPB).
+# $(DIR_NANOPB) is the directory into which the nanopb repo should be or is
+# installed.
+NANOPB              =nanopb
 GIT_NANOPB          =https://github.com/nanopb/nanopb
+DIR_NANOPB          =$(CURDIR)/$(NANOPB)
 
-# Nanopb local directory (clone of repo)
-# NOTE: If local directory is outside of project root and is used by other projects,
-#       disable OPTION_SHOULD_DELETE_NANOPB_ON_CLEAN.
-#       If DIR_NANOPB is missing, the Makefile will automatically download it.
-DIR_NANOPB         =$(CURDIR)/nanopb-src
+# -- COMMANDS, TOOLS AND FLAGS --
 
-# -- CUSTOMIZABLE COMMANDS / COMPILERS / COMPILER OPTIONS --
-
-# NOTE: If you don't feel safe using rm -rf (even though it should only run
-# on generated files), you can change this, but expect some errors.
 RM                  =rm -rf
 MKDIR               =mkdir -p
 ECHO                =@echo
 SYMLINK             =ln -s
-
-# IDK why this is here. It might be useful. Everything else is customizable.
 CLONE               =git clone
-
-# Compilers & options
-# If you like gcc/g++, use that. If you're not so classy and like clang/clang++,
-# feel free to use those. If your super classy, just use cc. Of course, CXX & LDXX
-# will be used if OPTION_USE_CPP is true.
-CC                  =gcc
-LD                  =$(CC)
 PROTOC              =protoc
 
+# See $(OPTIONS_USE_CPP).
+CC                  =gcc
+LD                  =$(CC)
+EXTENSIONS_C        =-name '*.c'
 CXX                 =g++
 LDXX                =$(CXX)
+EXTENSIONS_CXX      =-name '*.cpp'
+
+# Extra flags for extra customization
 
 CFLAGS_OPTIONS      =-ggdb -O0 -march=native -ftrapv
 LDFLAGS_OPTIONS     =
 PROTOCFLAGS_OPTIONS =
 CLONEFLAGS_OPTIONS  =
-
-# -- MISCELLANEOUS OPTIONS --
-
-# The following is the search rule for files in the DIR_SOURCE_C directory
-# This should be in 'find command' format. For example:
-# ' -name '*.cpp' -o -name '*.cc' '
-# searches all files that end in '.cpp' or '.c'.
-# If you want extensions to be 'hidden', here's where to do it.
-# EXTENSIONS_CXX will be used if OPTION_USE_CPP is true.
-EXTENSIONS_C        =-name '*.c'
-EXTENSIONS_CXX      =-name '*.cpp'
 
 ####################################################################################################################################################
 #            /\            #                                                                                            #            /\            #
@@ -242,13 +238,12 @@ EXTENSIONS_SOURCE_lang_false =$(EXTENSIONS_C)
 EXTENSIONS_SOURCE_lang_true  =$(EXTENSIONS_CXX)
 EXTENSIONS_SOURCE            =$(EXTENSIONS_SOURCE_lang_$(OPTION_USE_CPP))
 
-
 LDFLAGS_ENTRY_POINT_false     =
 LDFLAGS_ENTRY_POINT_true      =-e$(notdir $@)
 LDFLAGS_ENTRY_POINT           =$(LDFLAGS_ENTRY_POINT_$(OPTION_MULTIPLE_ENTRY_POINTS))
 
 TARGET_SYMLINK_DEP_false     =
-TARGET_SYMLINK_DEP_true      =$(TARGET_SYMLINK_NAME)
+TARGET_SYMLINK_DEP_true      =$(_FILE_TARGET)
 TARGET_SYMLINK_DEP           =$(TARGET_SYMLINK_DEP_$(OPTION_MAKE_TARGET_SYMLINK))
 
 SOURCE_COMPILER_eng_false    =$(SOURCE_COMPILER_lang)
@@ -279,18 +274,7 @@ SYMBOLIC_LINKER_eng_false    =$(SYMLINK)
 SYMBOLIC_LINKER_eng_true     =$(ECHO) 'Creating a symbolic link'; $(SYMLINK)
 SYMBOLIC_LINKER              =$(SYMBOLIC_LINKER_eng_$(OPTION_USE_ENGLISH_OUTPUT))
 
-# -- ADVANCED DIRECTORY STRUCTURE BASE/FILENAMES --
-
-# Since of course we can't just use the directory structure basenames,
-# this is where their full relative path is created. The basenames are for
-# convenience. For example, if you're doing C++ and you feel offended by the
-# presence of the C folder, you can change it easily. However, there
-# is unfortunately nothing you can do about the makefile variable names.
-# They can be quite discriminatory at times.
-
-# This will also be the name of subdirectory for object & dependency of nanopb's .c files
-# (such as pb_encode.c.o etc.) in DIR_BUILD_DEP and DIR_BUILD_OBJ.
-NANOPB                    =nanopb
+# -- DIRECTORY STRUCTURE (full paths) --
 
 DIR_SOURCE                =$(_DIR_SOURCE)
 DIR_SOURCE_C              =$(addprefix $(DIR_SOURCE)/,$(_DIR_SOURCE_C))
@@ -302,117 +286,107 @@ DIR_BUILD_OBJ             =$(addprefix $(DIR_BUILD)/,$(_DIR_BUILD_OBJ))
 DIR_BUILD_OUT             =$(addprefix $(DIR_BUILD)/,$(_DIR_BUILD_OUT))
 FILE_TARGET               =$(addprefix $(DIR_BUILD_OUT)/,$(_FILE_TARGET))
 
+# See $(NANOPB).
 DIR_BUILD_DEP_NANOPB      =$(addsuffix /$(NANOPB),$(DIR_BUILD_DEP))
 DIR_BUILD_OBJ_NANOPB      =$(addsuffix /$(NANOPB),$(DIR_BUILD_OBJ))
 
-# These variables store all source files of a specific type
-# PBGEN files are those that are created by nanopb using the protos
-
+# Scans source files.
 FILE_SOURCE_PROTO         =$(shell find $(DIR_SOURCE_PROTO) -type f -name *.proto  2> /dev/null)
 FILE_SOURCE_C             =$(shell find $(DIR_SOURCE_C)     -type f \( $(EXTENSIONS_SOURCE) \)  2> /dev/null)
 FILE_SOURCE_C_PBGEN       =$(patsubst $(DIR_SOURCE_PROTO)/%.proto,$(DIR_SOURCE_C_PBGEN)/%.pb.c,$(FILE_SOURCE_PROTO))
 
+# Differentiate between source files in $(DIR_NANOPB) and in $(DIR_SOURCE_C).
+# $(FILE_SOURCE_C_NANOPB_REAL) has $(DIR_NANOPB) as a suffix (so it's the real .c files).
+# $(FILE_SOURCE_C_NANOPB) has $(NANOPB) as a suffix (so it's suffix is what get's put in $(DIR_BUILD_DEP)
+#     and $(DIR_BUILD_OBJ)).
+FILE_SOURCE_C_NOT_NANOPB  =$(sort $(FILE_SOURCE_C) $(FILE_SOURCE_C_PBGEN))
 FILE_SOURCE_C_NANOPB_REAL =$(patsubst %,$(DIR_NANOPB)/%.c,pb_common pb_encode pb_decode)
 FILE_SOURCE_C_NANOPB      =$(patsubst %,$(NANOPB)/%.c,pb_common pb_encode pb_decode)
 
-# If OPTION_USE_CPP is off or EXTENSIONS_C doesn't include '*.pb.c' or '*.c',
-#     FILE_SOURCE_C will contain PBGEN files.
-# If OPTION_USE_CPP is on and EXTENSIONS_C includes '*.pb.c' or '*.c'
-#     FILE_SOURCE_C won't contain PBGEN files.
-# Since PBGEN files also need to be treated like source code (compiled into objects and linked)
-# FILE_SOURCE_C_ALL is a concatenation of both lists (in case FILE_SOURCE_C doesn't contain PBGEN).
-# But if FILE_SOURCE_C does contain PBGEN, there will be duplicates.
-# Therefore, FILE_SOURCE_C_ALL is sorted to remove those duplicates.
+# These are all source files, and for it's purpose (to be patsubst'd into $(FILE_OBJ) and $(FILE_DEP)),
+#     it needs to use $(FILE_SOURCE_C_NANOPB) instead of $(FILE_SOURCE_C_NANOPB_REAL).
+FILE_SOURCE_C_ALL         =$(FILE_SOURCE_C_NOT_NANOPB) $(FILE_SOURCE_C_NANOPB)
 
-FILE_SOURCE_C_ALL         =$(sort $(FILE_SOURCE_C) $(FILE_SOURCE_C_PBGEN)) $(FILE_SOURCE_C_NANOPB)
-
+# $(FILE_DEP) is simply the list of dependencies for all source files
 FILE_DEP                  =$(patsubst %,$(DIR_BUILD_DEP)/%.d,$(FILE_SOURCE_C_ALL))
-FILE_OBJ                  =$(patsubst %,$(DIR_BUILD_OBJ)/%.o,$(FILE_SOURCE_C_ALL))
 
+# Differentiates between nanopb source and not-nanopb source, because nanopb source needs
+#     to be compiled into $(DIR_OBJ_NANOPB) instead of $(DIR_OBJ)/$(DIR_NANOPB).
+FILE_OBJ_NOT_NANOPB       =$(patsubst %,$(DIR_BUILD_OBJ)/%.o,$(FILE_SOURCE_C_NOT_NANOPB))
+FILE_OBJ_NANOPB           =$(patsubst %,$(DIR_BUILD_OBJ)/%.o,$(FILE_SOURCE_C_NANOPB))
+
+# $(FILE_OBJ) is simply the list of objects for all source files.
+FILE_OBJ                  =$(FILE_OBJ_NOT_NANOPB) $(FILE_OBJ_NANOPB)
+
+# Directories needed to create dependencies and objects.
 FILE_DEP_DIRS             =$(sort $(dir $(FILE_DEP)))
 FILE_OBJ_DIRS             =$(sort $(dir $(FILE_OBJ)))
 
-# -- ADVANCED COMMANDS / COMPILERS / COMPILER OPTIONS --
+# -- FINAL FLAGS --
 
-# All git clone flags
 CLONEFLAGS          =$(CLONEFLAGS_SILENT) $(CLONEFLAGS_OPTIONS)
 
-# All C/C++ flags
 CFLAGS_INCLUDE      =-I$(DIR_NANOPB)
 CFLAGS              =$(CFLAGS_INCLUDE) $(CFLAGS_OPTIONS)
 
-# All linker flags
 LDFLAGS             =$(LDFLAGS_ENTRY_POINT) $(LDFLAGS_OPTIONS)
 
-# All protoc flags
 PROTOCFLAGS_PLUGIN  =--plugin=$(DIR_NANOPB)/generator/protoc-gen-nanopb
 PROTOCFLAGS_INCLUDE =-I$(DIR_SOURCE_PROTO)
 PROTOCFLAGS_OUT     =--nanopb_out=$(DIR_SOURCE_C_PBGEN)
 PROTOCFLAGS         =$(PROTOCFLAGS_PLUGIN) $(PROTOCFLAGS_INCLUDE) $(PROTOCFLAGS_OUT) $(PROTOCFLAGS_OPTIONS)
-# -- MISCELLANEOUS --
 
-# Includes generated dependencies.
--include $(FILE_DEP)
+# -- FRONTEND MAKE RULES --
 
 .DEFAULT_GOAL=all
 .PHONY: clean
 .PRECIOUS: $(FILE_SOURCE_C_PBGEN) $(FILE_SOURCE_C_NANOPB_REAL)
 
-# -- FRONTEND RULES --
-
-# Prints the '##' documentation lines at the beginning of the makefile if 'make help' is run.
 help:
 	@sed -ne '/@sed/!s/## //p' $(MAKEFILE_LIST)
 
-# Generates DIR_SOURCE and subdirectories.
 template:
 	$(MKDIR) $(DIR_SOURCE) $(DIR_SOURCE_C) $(DIR_SOURCE_PROTO)
+	$(ECHO) 'int main() {\n}\n' > $(DIR_SOURCE_C)/main.c
+	$(ECHO) "do 'make' to compile"
 
-# Generates .pb.* files.
 pb-gen: $(SOURCE_C_PBGEN)
 
-# Generate EVERYTHING.
-all: $(FILE_TARGET) $(TARGET_SYMLINK_NAME)
+all: $(FILE_TARGET) $(TARGET_SYMLINK_DEP)
 
-# Clean all generated files.
 clean:
-	$(FILE_DELETER) $(DIR_BUILD) $(DIR_SOURCE_C_PBGEN) $(RM_FILE_NANOPB) $(TARGET_SYMLINK_NAME)
+	$(FILE_DELETER) $(DIR_BUILD) $(DIR_SOURCE_C_PBGEN) $(RM_FILE_NANOPB) $(TARGET_SYMLINK_DEP)
 
 remake: clean all
 
-# Generates the symlink at root, regardless of OPTION_MAKE_TARGET_SYMLINK.
-# NOTE: OPTION_MAKE_TARGET_SYMLINK is only for making symlink when 'make all' is run.
-root-symlink: $(TARGET_SYMLINK_NAME)
+root-symlink: $(_FILE_TARGET)
 
-# -- BACKEND / CREATION RULES AND DEPENDENCIES --
+# -- FILE GENERATION MAKE RULES --
 
-# Generates executable (links object files)
+# Includes all dependencies.
+-include $(FILE_DEP)
+
 $(FILE_TARGET): $(FILE_OBJ) | $(DIR_BUILD_OUT)
 	$(SOURCE_LINKER) -o$@ $^ $(LDFLAGS)
 	$(ECHO) '-- Built executable $@ --'
 
-# Generates compiled object files and dependency makefile rules.
-$(DIR_BUILD_OBJ)/$(DIR_SOURCE_C)/%.o: $(DIR_SOURCE_C)/% $(FILE_SOURCE_C_PBGEN) | $(FILE_DEP_DIRS) $(FILE_OBJ_DIRS)
-	$(SOURCE_COMPILER) -o$@ $< -c $(CFLAGS) -MMD -MP -MF$(DIR_BUILD_DEP)/$(DIR_SOURCE_C)/$*.d
+$(FILE_OBJ_NOT_NANOPB): $(DIR_BUILD_OBJ)/%.o: % $(FILE_SOURCE_C_PBGEN) | $(FILE_DEP_DIRS) $(FILE_OBJ_DIRS)
+	$(SOURCE_COMPILER) -o$@ $< -c $(CFLAGS) -MMD -MP -MF$(DIR_BUILD_DEP)/$*.d
 
-$(DIR_BUILD_OBJ_NANOPB)/%.o: $(DIR_NANOPB)/% | $(DIR_NANOPB) $(DIR_BUILD_DEP_NANOPB) $(DIR_BUILD_OBJ_NANOPB)
+$(FILE_OBJ_NANOPB): $(DIR_BUILD_OBJ_NANOPB)/%.o: $(DIR_NANOPB)/% | $(DIR_NANOPB) $(DIR_BUILD_DEP_NANOPB) $(DIR_BUILD_OBJ_NANOPB)
 	$(SOURCE_COMPILER) -o$@ $< -c $(CFLAGS) -MMD -MP -MF$(DIR_BUILD_DEP_NANOPB)/$*.d
 
 $(DIR_NANOPB)/%.c: | $(DIR_NANOPB)
 	@echo
 
-# Generates protocol buffers C code with nanopb.
 $(DIR_SOURCE_C_PBGEN)/%.pb.c $(DIR_SOURCE_C_PBGEN)/%.pb.h: $(DIR_SOURCE_PROTO)/%.proto | $(DIR_SOURCE_C_PBGEN) $(DIR_NANOPB)
 	$(PROTO_COMPILER) $< $(PROTOCFLAGS)
 
-# Generates missing directories.
 $(DIR_SOURCE_C_PBGEN) $(DIR_BUILD_DEP) $(DIR_BUILD_OBJ) $(DIR_BUILD_OUT) $(FILE_DEP_DIRS) $(FILE_OBJ_DIRS) $(DIR_BUILD_DEP_NANOPB) $(DIR_BUILD_OBJ_NANOPB):
 	$(DIRECTORY_MAKER) $@
 
-# Generates missing nanopb directory.
 $(DIR_NANOPB):
 	$(REPO_CLONER) $(CLONEFLAGS) $(GIT_NANOPB) $(DIR_NANOPB)
 
-# Generates the symlink.
 $(TARGET_SYMLINK_NAME):
 	$(SYMBOLIC_LINKER) $(DIR_BUILD_OUT)/$@ $@
