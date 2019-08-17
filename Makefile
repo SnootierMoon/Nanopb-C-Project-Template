@@ -134,7 +134,7 @@ OPTION_CLONE_SILENT                  =true
 #     $(EXTENSIONS_CPP) will be used to find source (.cpp) files,
 #     $(CXX) will be used to compile source files and
 #     $(LDXX) will be used to link object (.o) files off.
-OPTION_USE_CPP                       =true
+OPTION_USE_CPP                       =false
 
 # Use the -e linker flag for multiple entry points.
 # WARNING: Since _start won't be called, you must call exit(0)
@@ -147,7 +147,12 @@ OPTION_MULTIPLE_ENTRY_POINTS         =false
 # The name of the symlink is the name of the executable (see $(_FILE_TARGET)).
 OPTION_MAKE_TARGET_SYMLINK           =false
 
-# Lmao (big brains only)
+# Nake nanopb more verbose.
+# Useful for debugging nanopb options.
+# See: https://jpa.kapsi.fi/nanopb/docs/reference.html#proto-file-options
+OPTION_NANOPB_VERBOSITY              =false
+
+# Lmao (big brains only).
 OPTION_USE_ENGLISH_OUTPUT            =false
 
 # -- DIRECTORY STRUCTURE (basenames) --
@@ -159,7 +164,7 @@ OPTION_USE_ENGLISH_OUTPUT            =false
 #       this will cause dependencies (.d) and object (.o) files to be in the
 #       same directory.
 _DIR_SOURCE         =src
-_DIR_SOURCE_C       =cpp
+_DIR_SOURCE_C       =c
 _DIR_SOURCE_C_PBGEN =pb_gen
 _DIR_SOURCE_PROTO   =proto
 _DIR_BUILD          =build
@@ -175,7 +180,7 @@ _FILE_TARGET        =main
 # installed.
 NANOPB              =nanopb
 GIT_NANOPB          =https://github.com/nanopb/nanopb
-DIR_NANOPB          =$(CURDIR)/$(NANOPB)
+	DIR_NANOPB          =$(CURDIR)/$(NANOPB)
 
 # -- COMMANDS, TOOLS AND FLAGS --
 
@@ -218,6 +223,51 @@ CLONEFLAGS_OPTIONS  =
 
 # -- OPTION APPLICATION --
 
+# defaults
+
+ifneq ($(OPTION_SHOULD_DELETE_NANOPB_ON_CLEAN),true)
+ifneq ($(OPTION_SHOULD_DELETE_NANOPB_ON_CLEAN),false)
+OPTION_SHOULD_DELETE_NANOPB_ON_CLEAN=false
+$(error OPTION_SHOULD_DELETE_NANOPB_ON_CLEAN not set!)
+endif
+endif
+ifneq ($(OPTION_CLONE_SILENT),true)
+ifneq ($(OPTION_CLONE_SILENT),false)
+OPTION_CLONE_SILENT=true
+$(error OPTION_CLONE_SILENT not set!)
+endif
+endif
+ifneq ($(OPTION_USE_CPP),true)
+ifneq ($(OPTION_USE_CPP),false)
+OPTION_USE_CPP=false
+$(error OPTION_USE_CPP not set!)
+endif
+endif
+ifneq ($(OPTION_MULTIPLE_ENTRY_POINTS),true)
+ifneq ($(OPTION_MULTIPLE_ENTRY_POINTS),false)
+OPTION_MULTIPLE_ENTRY_POINTS=false
+$(error OPTION_MULTIPLE_ENTRY_POINTS not set!)
+endif
+endif
+ifneq ($(OPTION_MAKE_TARGET_SYMLINK),true)
+ifneq ($(OPTION_MAKE_TARGET_SYMLINK),false)
+OPTION_MAKE_TARGET_SYMLINK=false
+$(error OPTION_MAKE_TARGET_SYMLINK not set!)
+endif
+endif
+ifneq ($(OPTION_NANOPB_VERBOSITY),true)
+ifneq ($(OPTION_NANOPB_VERBOSITY),false)
+OPTION_NANOPB_VERBOSITY=false
+$(error OPTION_NANOPB_VERBOSITY not set!)
+endif
+endif
+ifneq ($(OPTION_USE_ENGLISH_OUTPUT),true)
+ifneq ($(OPTION_USE_ENGLISH_OUTPUT),false)
+OPTION_USE_ENGLISH_OUTPUT=false
+$(error OPTION_USE_ENGLISH_OUTPUT not set!)
+endif
+endif
+
 RM_FILE_NANOPB_false         =
 RM_FILE_NANOPB_true          =$(DIR_NANOPB)
 RM_FILE_NANOPB               =$(RM_FILE_NANOPB_$(OPTION_SHOULD_DELETE_NANOPB_ON_CLEAN))
@@ -249,6 +299,10 @@ LDFLAGS_ENTRY_POINT          =$(LDFLAGS_ENTRY_POINT_$(OPTION_MULTIPLE_ENTRY_POIN
 TARGET_SYMLINK_DEP_false     =
 TARGET_SYMLINK_DEP_true      =$(_FILE_TARGET)
 TARGET_SYMLINK_DEP           =$(TARGET_SYMLINK_DEP_$(OPTION_MAKE_TARGET_SYMLINK))
+
+NANOPB_VERBOSE_FLAG_false    =
+NANOPB_VERBOSE_FLAG_true     =v
+NANOPB_VERBOSE_FLAG          =$(NANOPB_VERBOSE_FLAG_$(OPTION_NANOPB_VERBOSITY))
 
 SOURCE_COMPILER_eng_false    =$(SOURCE_COMPILER_lang)
 SOURCE_COMPILER_eng_true     =$(ECHO) 'Compiling a source file'; $(SOURCE_COMPILER_lang)
@@ -337,8 +391,8 @@ LDFLAGS             =$(LDFLAGS_ENTRY_POINT) $(LDFLAGS_OPTIONS)
 
 PROTOCFLAGS_PLUGIN  =--plugin=$(DIR_NANOPB)/generator/protoc-gen-nanopb
 PROTOCFLAGS_INCLUDE =-I$(DIR_SOURCE_PROTO)
-PROTOCFLAGS_OUT     =--nanopb_out=$(DIR_SOURCE_C_PBGEN)
-PROTOCFLAGS         =$(PROTOCFLAGS_PLUGIN) $(PROTOCFLAGS_INCLUDE) $(PROTOCFLAGS_OUT) $(PROTOCFLAGS_OPTIONS)
+PROTOCFLAGS_OUT     =--nanopb_out=-$(NANOPB_VERBOSE_FLAG)I$(DIR_SOURCE_PROTO):$(DIR_SOURCE_C_PBGEN)
+	PROTOCFLAGS         =$(PROTOCFLAGS_PLUGIN) $(PROTOCFLAGS_INCLUDE) $(PROTOCFLAGS_OUT) $(PROTOCFLAGS_OPTIONS)
 
 # -- FRONTEND MAKE RULES --
 
@@ -352,6 +406,8 @@ help:
 template:
 	@$(MKDIR) $(DIR_SOURCE) $(DIR_SOURCE_C) $(DIR_SOURCE_PROTO)
 	$(ECHO) 'int main() {\n}\n' > $(DIR_SOURCE_C)/main$(EXTENSIONS_NORMAL)
+	$(ECHO) 'syntax="proto3";\n\nmessage TestMessage {\n\trepeated int32 testInt = 1;\n}\n' > $(DIR_SOURCE_PROTO)/test.proto
+	$(ECHO) 'TestMessage.testInt max_count=32' > $(DIR_SOURCE_PROTO)/test.options
 	$(ECHO) "now do 'make' or 'make all' to compile"
 
 pb-gen: $(SOURCE_C_PBGEN)
