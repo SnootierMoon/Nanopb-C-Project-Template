@@ -390,7 +390,7 @@ CFLAGS              =$(CFLAGS_INCLUDE) $(CFLAGS_OPTIONS)
 LDFLAGS             =$(LDFLAGS_ENTRY_POINT) $(LDFLAGS_OPTIONS)
 
 PROTOCFLAGS_PLUGIN  =--plugin=$(DIR_NANOPB)/generator/protoc-gen-nanopb
-PROTOCFLAGS_INCLUDE =-I$(DIR_SOURCE_PROTO)
+PROTOCFLAGS_INCLUDE =-I$(DIR_SOURCE_PROTO) -I$(DIR_NANOPB)/generator/proto
 PROTOCFLAGS_OUT     =--nanopb_out=-$(NANOPB_VERBOSE_FLAG)I$(DIR_SOURCE_PROTO):$(DIR_SOURCE_C_PBGEN)
 	PROTOCFLAGS         =$(PROTOCFLAGS_PLUGIN) $(PROTOCFLAGS_INCLUDE) $(PROTOCFLAGS_OUT) $(PROTOCFLAGS_OPTIONS)
 
@@ -406,8 +406,8 @@ help:
 template:
 	@$(MKDIR) $(DIR_SOURCE) $(DIR_SOURCE_C) $(DIR_SOURCE_PROTO)
 	$(ECHO) 'int main() {\n}\n' > $(DIR_SOURCE_C)/main$(EXTENSIONS_NORMAL)
-	$(ECHO) 'syntax="proto3";\n\nmessage TestMessage {\n\trepeated int32 testInt = 1;\n}\n' > $(DIR_SOURCE_PROTO)/test.proto
-	$(ECHO) 'TestMessage.testInt max_count=32' > $(DIR_SOURCE_PROTO)/test.options
+	$(ECHO) 'syntax="proto3";\nimport "nanopb.proto";\n\nmessage TestMessage {\n\trepeated int32 testInt = 1;\n\tstring name = 2 [(nanopb).max_size = 40];\n}\n' > $(DIR_SOURCE_PROTO)/test.proto
+	$(ECHO) 'TestMessage.testInt max_count:32' > $(DIR_SOURCE_PROTO)/test.options
 	$(ECHO) "now do 'make' or 'make all' to compile"
 
 pb-gen: $(SOURCE_C_PBGEN)
